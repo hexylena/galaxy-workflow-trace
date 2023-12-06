@@ -1,8 +1,11 @@
 # galaxy workflow invocation to chrome event trace
 
-Convert your workflow invocations into a zoomable, browseable view to help you debug scheduling issues. 
+Convert your workflow invocations into a zoomable, browseable view to help you debug scheduling issues.
 
-The trace files can be loaded in [Perfetto](https://ui.perfetto.dev/). An [example trace file](trace-3ea263bb1a48ea14.json) is included in this repository.
+The [chrom event trace](https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/edit) 
+formatted files can be loaded in [Perfetto](https://ui.perfetto.dev/). 
+
+An [example trace file](trace-3ea263bb1a48ea14.json) is included in this repository.
 
 ![image of a trace visualised with multiple processes showing different tools running in different 'threads'](screenshot.png)
 
