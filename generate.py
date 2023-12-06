@@ -48,17 +48,7 @@ def f2u(s, tz):
     return (int(d.strftime('%s')) + (tz * 3600.0)) * 1000 * 1000
 
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='Monitor a galaxy workflow invocation.')
-    parser.add_argument('galaxy_server', type=str, default='https://usegalaxy.eu')
-    parser.add_argument('invocation_id', type=str)
-    parser.add_argument('--timezone-offset', type=int, default=1, help='Server hours offset from UTC, as Galaxy does not properly expose a timezone on timestamps used in the UI, and instead shows you a naive datetime. E.g. 1 for a server in CET')
-    args = parser.parse_args()
-    key = os.environ['GALAXY_API_KEY']
-    if not key:
-        raise Exception('GALAXY_API_KEY environment variable not set.')
-    invocation_id = args.invocation_id
-
+def collect(invocation_id, args, key):
     invocation = fetch_invocation(invocation_id, args.galaxy_server, key)
     invocation['step_details'] = []
     steps = sorted(invocation['steps'], key=lambda x: x['order_index'])
@@ -76,8 +66,21 @@ if __name__ == '__main__':
 
     # with open(f'cache-{invocation_id}.json', 'w') as handle:
     #     json.dump(invocation, handle)
-    machine_names = []
-    tool_ids = []
+    return steps
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='Monitor a galaxy workflow invocation.')
+    parser.add_argument('galaxy_server', type=str, default='https://usegalaxy.eu')
+    parser.add_argument('invocation_id', type=str)
+    parser.add_argument('--timezone-offset', type=int, default=1, help='Server hours offset from UTC, as Galaxy does not properly expose a timezone on timestamps used in the UI, and instead shows you a naive datetime. E.g. 1 for a server in CET')
+    parser.add_argument('--exclude-cached', action='store_true', help='Exclude jobs running from cache')
+    parser.add_argument('--checkpoint', type=str, help='Optional location for storing a checkpoint which can be re-parsed later into a trace.')
+    args = parser.parse_args()
+    key = os.environ['GALAXY_API_KEY']
+    if not key:
+        raise Exception('GALAXY_API_KEY environment variable not set.')
+    invocation_id = args.invocation_id
 
     trace = {
         "meta_user": "galaxy-workflow-monitor",
@@ -90,8 +93,20 @@ if __name__ == '__main__':
         'traceEvents': [],
     }
 
-    # Alias from prior existence of this tool
-    data = invocation
+    if args.checkpoint and os.path.exists(args.checkpoint):
+        print("Loading checkpoint")
+        with open(args.checkpoint, 'r') as handle:
+            data = json.load(handle)
+    else:
+        data = collect(invocation_id, args, key)
+        if args.checkpoint:
+            print("Storing checkpoint")
+            with open(args.checkpoint, 'r') as handle:
+                json.dump(data, handle)
+
+    machine_names = []
+    tool_ids = []
+
     trace['traceEvents'].append({
         'pid': 1,
         'tid': 1,
@@ -129,6 +144,9 @@ if __name__ == '__main__':
         })
 
         for job_info in step['jobs']:
+            if args.exclude_cached and job_info['copied_from_job_id']:
+                    continue
+
             job_metrics = job_info['job_metrics']
             if len(job_metrics) == 0:
                 continue
@@ -150,6 +168,9 @@ if __name__ == '__main__':
     # Add traces for the actual invocation
     for step in data['step_details']:
         for job_info in step['jobs']:
+            if args.exclude_cached and job_info['copied_from_job_id']:
+                    continue
+
             job_metrics = job_info['job_metrics']
             if len(job_metrics) == 0:
                 continue
@@ -163,6 +184,14 @@ if __name__ == '__main__':
 
             if hostname not in machine_names:
                 machine_names.append(hostname)
+
+            # Better presentation
+            job_info['job_metrics'] = {
+                x['title']: x['value']
+                for x in job_info['job_metrics']
+            }
+            if 'dependencies' in job_info:
+                del job_info['dependencies']
 
             trace['traceEvents'].append({
                 'pid': 2,
