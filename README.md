@@ -9,6 +9,10 @@ An [example trace file](trace-3ea263bb1a48ea14.json) is included in this reposit
 
 ![image of a trace visualised with multiple processes showing different tools running in different 'threads'](screenshot.png)
 
+You can click on individual jobs to see job information, as well as nice human readable things like runtime:
+
+![metadata about a job like tool name/duration/etc](screenshot2.png)
+
 ## LICENSE
 
 AGPL-3.0-or-later
