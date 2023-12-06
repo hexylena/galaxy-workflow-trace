@@ -54,19 +54,18 @@ def collect(invocation_id, args, key):
     steps = sorted(invocation['steps'], key=lambda x: x['order_index'])
 
     # Collect data
-    for step in tqdm.tqdm(steps):
+    for step in tqdm.tqdm(steps, position=0):
         step_status = check_step_status(step['id'], args.galaxy_server, key)
         step['state'] = step_status
         step['jobs'] = []
-        for job in step_status['jobs']:
+        for job in tqdm.tqdm(step_status['jobs'], position=1):
             job_info = check_job_id_status(job['id'], args.galaxy_server, key)
             step['jobs'].append(job_info)
         invocation['step_details'].append(step)
 
-
     # with open(f'cache-{invocation_id}.json', 'w') as handle:
     #     json.dump(invocation, handle)
-    return steps
+    return invocation
 
 
 if __name__ == '__main__':
@@ -101,12 +100,13 @@ if __name__ == '__main__':
         data = collect(invocation_id, args, key)
         if args.checkpoint:
             print("Storing checkpoint")
-            with open(args.checkpoint, 'r') as handle:
+            with open(args.checkpoint, 'w') as handle:
                 json.dump(data, handle)
 
     machine_names = []
     tool_ids = []
 
+    print(data['create_time'])
     trace['traceEvents'].append({
         'pid': 1,
         'tid': 1,
