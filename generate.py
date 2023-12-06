@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import multiprocessing.pool
+# import bioblend
 import tqdm
 import json
 import datetime
@@ -53,14 +55,24 @@ def collect(invocation_id, args, key):
     invocation['step_details'] = []
     steps = sorted(invocation['steps'], key=lambda x: x['order_index'])
 
+    def _status(job_id):
+        return check_job_id_status(job_id, args.galaxy_server, key)
+
     # Collect data
     for step in tqdm.tqdm(steps, position=0):
         step_status = check_step_status(step['id'], args.galaxy_server, key)
         step['state'] = step_status
         step['jobs'] = []
-        for job in tqdm.tqdm(step_status['jobs'], position=1):
-            job_info = check_job_id_status(job['id'], args.galaxy_server, key)
-            step['jobs'].append(job_info)
+
+        pool = multiprocessing.pool.ThreadPool(processes=12)
+        job_ids = [job['id'] for job in step_status['jobs']]
+        results = pool.map(_status, job_ids, chunksize=1)
+        pool.close()
+        step['jobs'] = results
+
+        # for job in tqdm.tqdm(step_status['jobs'], position=1):
+        #     job_info = check_job_id_status(job['id'], args.galaxy_server, key)
+        #     step['jobs'].append(job_info)
         invocation['step_details'].append(step)
 
     # with open(f'cache-{invocation_id}.json', 'w') as handle:
@@ -76,9 +88,12 @@ if __name__ == '__main__':
     parser.add_argument('--exclude-cached', action='store_true', help='Exclude jobs running from cache')
     parser.add_argument('--checkpoint', type=str, help='Optional location for storing a checkpoint which can be re-parsed later into a trace.')
     args = parser.parse_args()
+
     key = os.environ['GALAXY_API_KEY']
     if not key:
         raise Exception('GALAXY_API_KEY environment variable not set.')
+    # gi = bioblend.galaxy.GalaxyInstance(url=args.galaxy_server, key=key)
+
     invocation_id = args.invocation_id
 
     trace = {
