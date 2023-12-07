@@ -13,6 +13,10 @@ You can click on individual jobs to see job information, as well as nice human r
 
 ![metadata about a job like tool name/duration/etc](screenshot2.png)
 
+## Notes
+
+For administrators this should also be really interesting, since you can use the same format/structure to make nice visualisations [of your cluster](https://medium.com/snowflake/build-farm-visualizations-5a079477502d)
+
 ## LICENSE
 
 AGPL-3.0-or-later
